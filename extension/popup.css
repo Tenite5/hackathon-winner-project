@@ -1,0 +1,69 @@
+body { width: 360px; min-height: 120px; background: var(--bg); }
+
+/* ---------- welcome */
+.hero {
+  position: relative; height: 196px; padding: 26px 22px 0; display: flex; flex-direction: column; align-items: center; text-align: center;
+}
+.hero::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 70px; background: linear-gradient(rgba(20, 20, 20, 0), var(--bg)); pointer-events: none; }
+.hero h1 { margin: 14px 0 6px; font-size: 26px; line-height: 1.1; font-weight: 650; letter-spacing: -0.035em; }
+.hero p { margin: 0; font-size: 13.5px; color: rgba(255, 255, 255, 0.72); max-width: 270px; }
+.welcome .body { position: relative; margin-top: -34px; padding: 0 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+
+.prompt { padding: 6px; border-radius: 22px; background: var(--card); border: 1px solid var(--line-strong); box-shadow: var(--shadow); }
+.prompt-input { display: flex; align-items: center; gap: 6px; padding: 4px 4px 4px 12px; }
+.prompt-input input { flex: 1; min-width: 0; height: 40px; border: 0; outline: 0; background: transparent; font-size: 14.5px; }
+.prompt-input input::placeholder { color: var(--text-3); }
+.send {
+  width: 34px; height: 34px; flex: none; display: grid; place-items: center; border: 0; border-radius: 50%;
+  background: #f2f2f2; color: #141414; transition: background 0.15s, opacity 0.15s;
+}
+.send:hover { background: #fff; }
+.send:disabled { opacity: 0.35; }
+.send svg { width: 17px; height: 17px; }
+.prompt-sep { height: 1px; margin: 4px 10px; background: var(--line); }
+
+.err { padding: 10px 12px; border-radius: 12px; font-size: 13px; line-height: 1.4; color: #ffb3c0; background: rgba(255, 77, 109, 0.1); }
+
+.name-row { display: flex; align-items: center; gap: 8px; padding: 0 6px; font-size: 13px; color: var(--text-2); }
+.name-row input {
+  flex: 1; min-width: 0; height: 30px; padding: 0 8px; border: 0; border-radius: 8px; outline: 0;
+  background: transparent; color: var(--text); font-weight: 550;
+}
+.name-row input:hover { background: var(--hover); }
+.name-row input:focus { background: var(--field); }
+
+.server-link { align-self: flex-start; display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 6px; border: 0; border-radius: 7px; background: none; color: var(--text-3); font-size: 12px; }
+.server-link:hover { color: var(--text-2); background: var(--hover); }
+.server-link svg { width: 13px; height: 13px; }
+.server-form { display: flex; gap: 6px; }
+.server-form .input { height: 36px; font-size: 13px; }
+
+/* ---------- in a room */
+.pop { padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+.head { display: flex; align-items: center; gap: 10px; padding: 2px 2px 0; }
+.head .title { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+.head .sub { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-2); }
+
+.card { padding: 14px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); }
+.tab-line { display: flex; align-items: center; gap: 11px; }
+.tab-line .fav, .tab-line .fav-fallback { width: 20px; height: 20px; }
+.tab-line .t { font-size: 14px; font-weight: 600; }
+.tab-line .h { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-2); }
+.card .btn.lg { margin-top: 14px; }
+.card .arrow-row { margin-top: 4px; font-size: 14px; min-height: 40px; }
+.note { display: flex; gap: 8px; align-items: flex-start; margin: 10px 2px 0; font-size: 12.5px; color: var(--text-3); line-height: 1.45; }
+.note svg { width: 13px; height: 13px; margin-top: 2px; }
+.toggle { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.035); cursor: pointer; }
+.toggle b { display: block; font-size: 13.5px; font-weight: 550; }
+.toggle span { font-size: 12.5px; color: var(--text-2); }
+
+.label { padding: 0 4px 6px; font-size: 13px; font-weight: 500; color: var(--text-2); }
+.list { display: flex; flex-direction: column; max-height: 168px; overflow: auto; }
+.list .row { min-height: 44px; }
+.list .row .t { font-size: 13.5px; }
+.empty-line { padding: 8px 4px; font-size: 13px; color: var(--text-3); }
+
+.foot { display: flex; gap: 8px; }
+.foot .btn { flex: 1; }
+
+.center { display: grid; place-items: center; gap: 12px; padding: 28px 10px; text-align: center; color: var(--text-2); }

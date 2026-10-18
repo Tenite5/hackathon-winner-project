@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>CoTab</title>
+    <link rel="icon" href="icons/icon32.png" />
+    <link rel="stylesheet" href="ui.css" />
+    <link rel="stylesheet" href="room.css" />
+  </head>
+  <body>
+    <div class="app" id="app">
+      <aside class="sidebar">
+        <div class="side-top">
+          <div class="brand" id="brand"></div>
+          <button class="room-switch" id="roomSwitch"></button>
+          <nav class="nav">
+            <button class="row" id="navShare"></button>
+            <button class="row" id="navInvite"></button>
+          </nav>
+        </div>
+        <div class="side-scroll">
+          <section class="section">
+            <button class="section-head" data-section="tabs"><span>Live tabs</span></button>
+            <div class="section-body" id="tabsList"></div>
+          </section>
+          <section class="section">
+            <button class="section-head" data-section="people"><span>People</span></button>
+            <div class="section-body" id="peopleList"></div>
+          </section>
+        </div>
+        <div class="side-bottom">
+          <button class="promo" id="promo"></button>
+          <div class="me" id="meBox"></div>
+        </div>
+      </aside>
+
+      <main class="panel aurora" id="panel">
+        <div class="topbar">
+          <div class="topbar-left" id="conn"></div>
+          <button class="people-pill" id="presence"></button>
+          <div class="seg" id="modeSeg">
+            <button data-mode="focus">Focus</button>
+            <button data-mode="grid">All tabs</button>
+          </div>
+        </div>
+        <div class="stage-head" id="stageHead" hidden></div>
+        <div class="wall" id="wall">
+          <div class="hero" id="hero" hidden></div>
+        </div>
+      </main>
+    </div>
+
+    <div class="scrim" id="picker" hidden></div>
+    <div class="gate" id="gate" hidden></div>
+    <div class="toasts" id="toasts"></div>
+    <audio id="audio"></audio>
+    <script src="vendor/rrweb-replay.js"></script>
+    <script type="module" src="room.js"></script>
+  </body>
+</html>

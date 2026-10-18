@@ -1,0 +1,64 @@
+{
+  "manifest_version": 3,
+  "name": "CoTab — Browse Together",
+  "short_name": "CoTab",
+  "version": "2.0.0",
+  "description": "Browse together: share the tabs you choose as live, pixel-sharp pages. Watch, follow and take control with permission.",
+  "minimum_chrome_version": "116",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "CoTab",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "tabs",
+    "tabCapture",
+    "activeTab",
+    "offscreen",
+    "storage",
+    "scripting",
+    "notifications",
+    "contextMenus",
+    "alarms"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "commands": {
+    "toggle-share": {
+      "suggested_key": {
+        "default": "Alt+Shift+S"
+      },
+      "description": "Share / stop sharing the current tab"
+    },
+    "invite-here": {
+      "suggested_key": {
+        "default": "Alt+Shift+F"
+      },
+      "description": "Invite everyone to follow the current tab"
+    }
+  }
+}
