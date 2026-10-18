@@ -10,6 +10,8 @@ CoTab is a Chrome extension for browsing in shared rooms. Everyone keeps working
 - **Watch, switch, follow.** Focus one tab with the others below, or see all of them at once. **Follow** someone to jump to whichever shared tab they're on.
 - **Take control, with permission.** Click **Ask to control** and the owner sees an Allow / Not now prompt. You can then click, type, paste, scroll, go back and forward, or type a URL. Everyone sees everyone's cursor, with names.
 - **Private by default.** Only the tabs you share are visible, and people browsing elsewhere show as *Browsing privately*. Password fields are masked in the mirror.
+- **AI helpers.** Ask an AI to do something on any tab, like the Claude or ChatGPT extensions. Run several at once, watch each one in the side panel, and reply to steer it. Helpers on a shared tab need the owner's control permission.
+- **Narrow windows.** Under 1000px wide the sidebar becomes a drawer behind the menu button, so the shared tab keeps its full size.
 
 ## Quick start (about 5 minutes)
 
@@ -79,9 +81,36 @@ TURN_URL=turn:your.turn.host:3478 TURN_USERNAME=user TURN_CREDENTIAL=pass npm ru
 | --- | --- | --- |
 | Any tab | `Alt+Shift+S` | Share / stop sharing this tab |
 | Any tab | `Alt+Shift+F` | Ask everyone to look at this tab |
+| Any tab | `Alt+Shift+A` | Open AI helpers in the side panel |
 | Room view | `1`–`9` | Jump to a shared tab |
 | Room view | `G` | Toggle Focus / All tabs |
 | Room view | `F` | Fullscreen |
+
+## AI helpers
+
+1. Open the side panel with `Alt+Shift+A`, or click **Ask AI** in the popup or room.
+2. Open the settings (sliders icon) and paste an [OpenRouter](https://openrouter.ai/keys) key. It's saved in your browser only and never sent to the room server.
+3. Pick the tab to work on, type what you want, and press Enter.
+
+Pick a speed in the settings: **Fastest**, **Balanced** or **Most careful**. You can also point the endpoint at any OpenAI-compatible service.
+
+**Where helpers can go**
+
+| Helper works on | Can open other tabs? | Can message other helpers? |
+| --- | --- | --- |
+| A tab in your own browser | Yes, when a job needs another site. It opens in the background and the card lists its tabs. | Yes |
+| A tab someone shared with you in the room | No. It stays on that tab, and the owner's control permission covers only that tab. | Yes, with helpers in your browser |
+
+The composer always shows which rule applies to the tab you picked, and each helper card says it too.
+
+- Each helper gets its own card with a live step list, a Stop button and a reply box for follow-up instructions.
+- Helpers read the page, then click, type, scroll and navigate. A glowing frame and a Stop pill show on the page while they work.
+- Game boards work too. On chess.com a helper sees the board as one entry listing the pieces by square, and moves them by clicking squares like `e2` then `e4`.
+- Helpers never pay, send, post or delete unless you explicitly asked for it, and they stop to ask you at logins, payments and captchas.
+- A helper on someone else's shared tab only works once that person has given you control, and it runs in their browser.
+- **Tabs of their own.** A helper can open a second site in a background tab, switch between its tabs, and close the ones it opened. Its tabs are labelled T1, T2 and so on.
+- **Teamwork.** Helpers in your browser message each other by name. A helper can start another for a separate part of the job, on your tab or a new one, and its report comes back as a message. Two helpers can share a tab: their actions take turns, so clicks never interleave. Stopping a helper also stops the ones it started.
+- Up to 6 helpers can run at once.
 
 ## How it works
 

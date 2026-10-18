@@ -1,5 +1,7 @@
 // CoTab service worker: owns the room connection and routes messages between the server,
-// the popup / room page (ports), the offscreen video engine and the content scripts.
+// the popup / room page / AI side panel (ports), the offscreen video engine and the content scripts.
+
+importScripts('agent.js'); // AI helpers
 
 const DEFAULT_SERVER = 'ws://localhost:8787';
 const COLORS = ['#ff416c', '#7b2ff7', '#06b6d4', '#f97316', '#22c55e', '#eab308', '#c724b1', '#3b82f6'];
@@ -174,6 +176,8 @@ function onServer(msg) {
       }
       reconcileShared();
       for (const key of mySubs) send({ type: 'mirror-sub', tabKey: key });
+      publishAgentPresence.last = null;
+      publishAgentPresence();
       updateActive(true);
       setStatus('connected');
       updateBadge();
@@ -228,6 +232,15 @@ function onServer(msg) {
       break;
     case 'invite':
       onInvite(msg);
+      break;
+    case 'agent-rpc':
+      onAgentRpc(msg);
+      break;
+    case 'agent-rpc-result':
+      onAgentRpcResult(msg);
+      break;
+    case 'agent-stop':
+      onAgentStopRequest(msg);
       break;
   }
 }
@@ -317,7 +330,7 @@ function setStatus(s) {
 }
 
 chrome.runtime.onConnect.addListener(port => {
-  if (port.name !== 'popup' && port.name !== 'room') return;
+  if (port.name !== 'popup' && port.name !== 'room' && port.name !== 'panel') return;
   ports.add(port);
   port.onDisconnect.addListener(() => {
     ports.delete(port);
@@ -328,7 +341,10 @@ chrome.runtime.onConnect.addListener(port => {
     }
   });
   port.onMessage.addListener(msg => ready.then(() => onPortMessage(port, msg)));
-  ready.then(() => post(port, { type: 'state', state: publicState() }));
+  ready.then(async () => {
+    post(port, { type: 'state', state: publicState() });
+    post(port, { type: 'agents', agents: publicAgents(), settings: aiPublicSettings(await aiSettings()) });
+  });
 });
 
 async function onPortMessage(port, msg) {
@@ -413,6 +429,7 @@ const api = {
   retry() {
     if (roomCode) connect(true);
   },
+  ...aiApi,
 };
 
 // ------------------------------------------------------------------ identity + settings
@@ -515,7 +532,7 @@ async function ensureContentScript(tabId) {
     if ((await chrome.tabs.sendMessage(tabId, { type: 'ping' })) === 'pong') return true;
   } catch {}
   try {
-    await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] });
+    await chrome.scripting.executeScript({ target: { tabId }, files: ['input.js', 'content.js'] });
     return true;
   } catch {
     return false;
@@ -536,7 +553,7 @@ async function injectRecorder(tabId) {
       },
     });
     if (!running) {
-      await chrome.scripting.executeScript({ target: { tabId }, world: 'MAIN', files: ['vendor/rrweb-record.js', 'recorder.js'] });
+      await chrome.scripting.executeScript({ target: { tabId }, world: 'MAIN', files: ['vendor/rrweb-record.js', 'input.js', 'recorder.js'] });
     }
     return true;
   } catch {
@@ -573,11 +590,14 @@ async function shareTab(tabId, { capture = true } = {}) {
   shared[tabId] = entry;
   // A tab that is still loading also gets its recorder once the page finishes loading.
   entry.mirror = (await injectRecorder(tabId)) || entry.loading;
-  if (capture) entry.video = await startCapture(tab).catch(() => false);
-  if (!entry.mirror && !entry.video) {
-    delete shared[tabId];
-    saveShared();
-    throw new Error("This page can't be shared. Chrome protects some pages, like the Web Store and settings.");
+  // The page mirror is what viewers get, so it decides whether the share works. Video only waits when there is no mirror.
+  if (!entry.mirror) {
+    if (capture) entry.video = await startCapture(tab).catch(() => false);
+    if (!entry.video) {
+      delete shared[tabId];
+      saveShared();
+      throw new Error("This page can't be shared. Chrome protects some pages, like the Web Store and settings.");
+    }
   }
   saveShared();
   chrome.tabs.update(tabId, { autoDiscardable: false }).catch(() => {});
@@ -586,7 +606,22 @@ async function shareTab(tabId, { capture = true } = {}) {
   updateActive();
   updateBadge();
   broadcastState();
+  if (capture && !entry.video) addVideoLater(tab);
   return true;
+}
+
+// Starts the video feed without holding up the share. Once it is live, viewers get told the tab has video.
+function addVideoLater(tab) {
+  startCapture(tab).then(
+    () => {
+      if (!shared[tab.id]) return toOffscreen({ type: 'stop-capture', tabId: tab.id }).catch(() => {});
+      shared[tab.id].video = true;
+      saveShared();
+      announce(tab.id);
+      broadcastState();
+    },
+    () => {},
+  );
 }
 
 async function unshareTab(tabId) {
@@ -879,6 +914,7 @@ const fromContent = {
   'set-interactive': (msg, tab) => setInteractive(tab.id, msg.on),
   'stop-sharing': (msg, tab) => unshareTab(tab.id),
   'invite-info': () => ({ name: me.name, roomCode }),
+  'agent-stop-from-page': msg => stopFromPage(msg.agentId),
   async 'invite-join'(msg) {
     if (msg.name) await setName(msg.name);
     if (room?.code !== msg.code) {
@@ -965,4 +1001,10 @@ async function quickAction(kind, tab) {
 }
 
 chrome.contextMenus.onClicked.addListener((info, tab) => quickAction(info.menuItemId === 'invite' ? 'invite' : 'share', tab));
-chrome.commands.onCommand.addListener((command, tab) => quickAction(command === 'invite-here' ? 'invite' : 'toggle', tab));
+chrome.commands.onCommand.addListener((command, tab) => {
+  if (command === 'open-ai') {
+    chrome.sidePanel.open({ windowId: tab?.windowId ?? chrome.windows.WINDOW_ID_CURRENT }).catch(() => {});
+    return;
+  }
+  quickAction(command === 'invite-here' ? 'invite' : 'toggle', tab);
+});

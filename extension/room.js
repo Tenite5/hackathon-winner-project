@@ -49,8 +49,26 @@ for (const head of document.querySelectorAll('.section-head')) {
 $('#modeSeg [data-mode=focus]').innerHTML = `${icon('square')} Focus`;
 $('#modeSeg [data-mode=grid]').innerHTML = `${icon('grid')} All tabs`;
 for (const b of document.querySelectorAll('#modeSeg button')) b.onclick = () => setMode(b.dataset.mode);
-$('#navShare').onclick = openPicker;
-$('#navInvite').onclick = copyInvite;
+$('#navAi').innerHTML = `${icon('sparkles')}<span>AI helpers</span>`;
+$('#menuBtn').innerHTML = icon('menu');
+$('#navShare').onclick = () => (closeDrawer(), openPicker());
+$('#navInvite').onclick = () => (closeDrawer(), copyInvite());
+$('#navAi').onclick = () => (closeDrawer(), openAiPanel());
+$('#menuBtn').onclick = () => $('#app').classList.toggle('side-open');
+$('#sideScrim').onclick = () => closeDrawer();
+
+// On narrow windows the sidebar is a drawer.
+function closeDrawer() {
+  $('#app').classList.remove('side-open');
+}
+
+// AI helpers live in Chrome's side panel next to this page.
+let myWindowId = null;
+chrome.windows.getCurrent().then(w => (myWindowId = w.id));
+function openAiPanel(pending) {
+  if (myWindowId != null) chrome.sidePanel.open({ windowId: myWindowId }).catch(() => {});
+  if (pending) chrome.storage.session.set({ aiTarget: { ...pending, at: Date.now() } });
+}
 $('#presence').onclick = copyInvite;
 $('#promo').onclick = copyInvite;
 
@@ -188,6 +206,10 @@ function renderSidebar() {
     $('#roomSwitch').onclick = e => openRoomMenu(e.currentTarget);
   }
 
+  // AI helpers anyone in the room is running, by the shared tab they work on
+  const helpers = room.members.flatMap(m => (m.online ? (m.agents || []).map(a => ({ ...a, by: m })) : []));
+  const helpersOn = key => helpers.filter(a => a.tabKey === key);
+
   // live tabs: other people's first, then yours
   const tabs = [...remoteTabs(), ...room.tabs.filter(t => t.ownerId === me.id)];
   const tabsHtml = tabs.length
@@ -196,9 +218,11 @@ function renderSidebar() {
           const mine = t.ownerId === me.id;
           const owner = member(t.ownerId);
           const watchers = room.members.filter(m => m.id !== me.id && m.online && m.watching === t.key).length;
+          const ai = helpersOn(t.key);
+          const aiNote = ai.length ? ` · ✦ ${esc(ai.map(a => a.name).join(', '))} working` : '';
           const sub = mine
-            ? `You${t.interactive ? ' · control on' : ''}${watchers ? ` · ${watchers} watching` : ''}`
-            : `${esc(owner?.name || 'Someone')}${t.loading ? ' · loading' : ''}`;
+            ? `You${t.interactive ? ' · control on' : ''}${watchers ? ` · ${watchers} watching` : ''}${aiNote}`
+            : `${esc(owner?.name || 'Someone')}${t.loading ? ' · loading' : ''}${aiNote}`;
           const active = !mine && mode === 'focus' && t.key === focusKey;
           return `<div class="row item ${active ? 'active' : ''}" data-key="${esc(t.key)}" data-mine="${mine ? t.tabId : ''}" tabindex="0" title="${mine ? 'Go to this tab' : 'Watch this tab'}">
             ${favicon(t.favIconUrl, t.title)}
@@ -218,6 +242,7 @@ function renderSidebar() {
     for (const el of document.querySelectorAll('#tabsList .item')) {
       el.onclick = e => {
         if (e.target.closest('.tools')) return;
+        closeDrawer();
         if (el.dataset.mine) client.call('focusTab', Number(el.dataset.mine));
         else {
           followId = null;
@@ -249,15 +274,32 @@ function renderSidebar() {
       else if (watching) status = `Watching ${watching.ownerId === me.id ? 'your' : `${esc(firstName(member(watching.ownerId)?.name))}'s`} tab`;
       else status = 'Browsing privately';
       const canFollow = !isMe && room.tabs.some(t => t.ownerId === m.id);
+      const theirHelpers = m.online ? m.agents || [] : [];
       return `<div class="row person">
         ${avatar(m, { presence: true })}
         <span class="grow"><span class="t ellipsis" style="display:block">${esc(m.name)}${isMe ? ' <span class="faint">(you)</span>' : ''}</span><span class="sub ellipsis">${status}</span></span>
         ${canFollow ? `<button class="btn sm ghost follow ${followId === m.id ? 'on' : ''}" data-follow="${esc(m.id)}" title="Jump to whichever shared tab ${esc(m.name)} is on">${followId === m.id ? 'Following' : 'Follow'}</button>` : ''}
-      </div>`;
+      </div>${theirHelpers.map(a => {
+        const tab = a.tabKey && room.tabs.find(t => t.key === a.tabKey);
+        const what = tab ? `On “${esc(tab.title)}”${a.step ? ` · ${esc(a.step)}` : ''}` : 'Working in a private tab';
+        return `<div class="row person helper" ${tab ? `data-helper-tab="${esc(tab.key)}"` : ''} title="${esc(a.task || '')}">
+          <span class="avatar sm helper-av" style="--c:${esc(a.color)}">${icon('sparkles')}</span>
+          <span class="grow"><span class="t ellipsis" style="display:block">${esc(a.name)} <span class="faint">· ${isMe ? 'your' : `${esc(firstName(m.name))}'s`} AI</span></span><span class="sub ellipsis">${what}</span></span>
+        </div>`;
+      }).join('')}`;
     })
     .join('');
   if (setHtml($('#peopleList'), 'people', peopleHtml)) {
     for (const b of document.querySelectorAll('[data-follow]')) b.onclick = () => toggleFollow(b.dataset.follow);
+    for (const r of document.querySelectorAll('[data-helper-tab]')) {
+      r.onclick = () => {
+        const key = r.dataset.helperTab;
+        if (!viewers.has(key)) return; // it's one of your own tabs
+        closeDrawer();
+        setMode('focus');
+        setFocus(key, true);
+      };
+    }
   }
 
   setHtml($('#promo'), 'promo', `<span class="grow"><b>Invite people</b><span class="sub">${icon(reach.icon)}${reach.short}</span></span><span class="art aurora">${icon('userPlus')}</span>`);
@@ -499,7 +541,8 @@ function renderStageHead() {
       </div>`
     : '';
   const controlHtml = t.interactive
-    ? `<span class="in-control">${icon('pointer')} You can control</span>`
+    ? `<span class="in-control">${icon('pointer')} You can control</span>
+       <button class="btn sm" id="askAi" title="Let an AI helper do something on this tab">${icon('sparkles')} Ask AI</button>`
     : `<button class="btn sm primary" id="askCtl" ${req ? 'disabled' : ''}>${icon('hand')} ${req ? 'Asked…' : 'Ask to control'}</button>`;
   const media = v.mode === 'video'
     ? `<button class="icon-btn" id="mute" title="${audioBlocked ? 'Click to hear this tab' : audioOn ? 'Mute' : 'Unmute'}">${icon(audioOn && !audioBlocked ? 'volume' : 'mute')}</button>
@@ -543,6 +586,7 @@ function renderStageHead() {
     $('#address').onfocus = e => e.target.select();
   }
   $('#askCtl') && ($('#askCtl').onclick = () => requestControl(t.key));
+  $('#askAi') && ($('#askAi').onclick = () => openAiPanel({ kind: 'remote', tabKey: t.key }));
   $('#unfollow') && ($('#unfollow').onclick = () => toggleFollow(followId));
   $('#mute') && ($('#mute').onclick = () => {
     audioOn = audioBlocked ? true : !audioOn;
@@ -919,18 +963,20 @@ class Viewer {
     return { x, y, w, h };
   }
 
-  remoteCursor({ from, x, y, gone, click }) {
-    const who = member(from);
+  remoteCursor({ from, x, y, gone, click, ai }) {
+    // AI helpers working on the owner's tab get their own named cursor
+    const who = ai?.id ? { id: ai.id, name: ai.name, color: ai.color, ai: true } : member(from);
     if (!who) return;
-    let c = this.cursors.get(from);
+    const id = who.ai ? who.id : from;
+    let c = this.cursors.get(id);
     if (!c) {
       const el = document.createElement('div');
-      el.className = 'rcursor idle';
+      el.className = `rcursor idle ${who.ai ? 'ai' : ''}`;
       el.style.setProperty('--c', who.color);
-      el.innerHTML = `${CURSOR_SVG(who.color)}<span>${esc(firstName(who.name))}</span>`;
+      el.innerHTML = `${CURSOR_SVG(who.color)}<span>${who.ai ? '✦ ' : ''}${esc(firstName(who.name))}</span>`;
       this.cursorLayer.appendChild(el);
       c = { el, timer: 0 };
-      this.cursors.set(from, c);
+      this.cursors.set(id, c);
     }
     if (gone) {
       c.el.classList.add('idle');
@@ -950,7 +996,7 @@ class Viewer {
       setTimeout(() => r.remove(), 550);
     }
     clearTimeout(c.timer);
-    c.timer = setTimeout(() => c.el.classList.add('idle'), 4000);
+    c.timer = setTimeout(() => c.el.classList.add('idle'), who.ai ? 12000 : 4000);
   }
 
   // ---- video feed (WebRTC from the owner's offscreen document)

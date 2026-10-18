@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>CoTab AI</title>
+    <link rel="stylesheet" href="ui.css" />
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <div class="sp">
+      <header class="sp-head" id="head"></header>
+      <section class="settings" id="settings" hidden></section>
+      <main class="feed" id="feed"></main>
+      <footer class="composer" id="composer">
+        <button class="target" id="target" type="button"></button>
+        <p class="rule" id="rule"></p>
+        <form class="box" id="form">
+          <textarea id="prompt" rows="1" placeholder="What should AI do on this tab?" spellcheck="true"></textarea>
+          <button class="send" id="send" type="submit" title="Start (Enter)" disabled></button>
+        </form>
+      </footer>
+    </div>
+    <div class="toasts" id="toasts"></div>
+    <script type="module" src="sidepanel.js"></script>
+  </body>
+</html>

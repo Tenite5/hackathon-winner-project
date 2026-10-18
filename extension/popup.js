@@ -74,6 +74,7 @@ function renderWelcome() {
         </form>
         <div class="prompt-sep"></div>
         <button class="row arrow-row" id="create">${icon('arrowRight')}<span>Start a new room</span></button>
+        <button class="row arrow-row" id="askAi" hidden>${icon('sparkles')}<span>Ask AI to do something on this tab</span></button>
       </div>
       <div class="err" id="err" hidden></div>
       <label class="name-row">You'll appear as <input id="name" maxlength="40" autocomplete="off" spellcheck="false" value="${esc(S.me?.name)}"></label>
@@ -103,6 +104,7 @@ function renderWelcome() {
       window.close();
     });
   };
+  $('askAi').onclick = askAi;
   $('serverToggle').onclick = () => {
     $('serverForm').hidden = !$('serverForm').hidden;
     if (!$('serverForm').hidden) $('server').focus();
@@ -122,6 +124,7 @@ function updateWelcome() {
   $('create').innerHTML = `${spin('create', icon('arrowRight'))}<span>${busy === 'create' ? 'Starting your room…' : 'Start a new room'}</span>`;
   $('join').disabled = !!busy || !$('code').value.trim();
   $('join').innerHTML = spin('join', icon('arrowRight'));
+  $('askAi').hidden = !(activeTab && SHAREABLE.test(activeTab.url || ''));
   $('err').hidden = !error;
   $('err').textContent = error || '';
   $('serverLabel').textContent = `Server: ${S.serverUrl.replace(/^wss?:\/\//, '')}`;
@@ -165,6 +168,7 @@ function roomHtml() {
       <div class="tab-line">${favicon(tab.favIconUrl, tab.title)}<div class="grow"><div class="t ellipsis">${esc(tab.title)}</div><div class="h">${esc(hostOf(tab.url))}</div></div></div>
       <button class="btn primary lg block" id="share" ${busy ? 'disabled' : ''}>${spin('share', icon('share'))} Share this tab</button>
       <button class="row arrow-row" id="invite" ${busy ? 'disabled' : ''}>${spin('invite', icon('arrowRight'))}<span>Share it and ask everyone to look</span></button>
+      <button class="row arrow-row" id="askAi">${icon('sparkles')}<span>Ask AI to do something here</span></button>
       <div class="note">${icon('lock')}<span>Only this tab is shared. Your other tabs stay private.</span></div>
     </div>`;
   } else if (tab) {
@@ -181,6 +185,7 @@ function roomHtml() {
       </div>
       ${share.video ? '' : `<button class="row arrow-row" id="addVideo" ${busy ? 'disabled' : ''}>${spin('video', icon('arrowRight'))}<span>Add video &amp; sound<span class="sub">Best for videos, games and canvas apps</span></span></button>`}
       <button class="row arrow-row" id="invite" ${busy ? 'disabled' : ''}>${spin('invite', icon('arrowRight'))}<span>Ask everyone to look at this tab</span></button>
+      <button class="row arrow-row" id="askAi">${icon('sparkles')}<span>Ask AI to do something here</span></button>
       <button class="row arrow-row danger" id="stop" ${busy ? 'disabled' : ''}>${spin('stop', icon('x'))}<span>Stop sharing</span></button>
     </div>`;
   }
@@ -228,6 +233,7 @@ function bindRoom() {
     setTimeout(() => ((copied = false), render()), 1500);
   });
   on('share', () => run('share', () => client.call('shareTab', activeTab.id)));
+  on('askAi', askAi);
   on('addVideo', () => run('video', () => client.call('shareTab', activeTab.id)));
   on('invite', () => run('invite', () => client.call('inviteHere', activeTab.id)));
   on('stop', () => run('stop', () => client.call('unshareTab', activeTab.id)));
@@ -245,4 +251,11 @@ function bindRoom() {
     ], { align: 'right' }),
   );
   for (const item of document.querySelectorAll('[data-key]')) item.onclick = () => openRoom(item.dataset.key);
+}
+
+// AI helpers live in Chrome's side panel. Open it first (it needs this click), then tell it which tab.
+async function askAi() {
+  chrome.sidePanel.open({ windowId: activeTab.windowId }).catch(() => {});
+  await chrome.storage.session.set({ aiTarget: { kind: 'local', tabId: activeTab.id, at: Date.now() } });
+  window.close();
 }

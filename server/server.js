@@ -75,6 +75,7 @@ function snapshot(room) {
       online: !!m.ws,
       activeTabKey: m.activeTabKey || null,
       watching: m.watching || null,
+      agents: m.agents || [],
       joinedAt: m.joinedAt,
     })),
     tabs: [...room.tabs.values()].map(t => ({ ...t, viewers: room.subs.get(t.key)?.size || 0 })),
@@ -117,6 +118,21 @@ function removeMember(room, id) {
   for (const [key, tab] of room.tabs) if (tab.ownerId === id) dropTab(room, key);
   if (!room.members.size) rooms.delete(room.code);
   else scheduleBroadcast(room);
+}
+
+function cleanAgent(a) {
+  if (!a || typeof a !== 'object') return undefined;
+  return { id: clean(a.id, 64), name: clean(a.name, 24), color: clean(a.color, 20) };
+}
+
+function cleanAgents(list) {
+  if (!Array.isArray(list)) return [];
+  return list.slice(0, 8).map(a => ({
+    ...cleanAgent(a),
+    tabKey: clean(a.tabKey, 100) || null,
+    task: clean(a.task, 140) || null,
+    step: clean(a.step, 100) || null,
+  }));
 }
 
 function cleanTab(owner, t, room) {
@@ -217,6 +233,7 @@ function onConnection(ws, req) {
         if ('name' in p) me.name = clean(p.name, 40) || me.name;
         if ('activeTabKey' in p) me.activeTabKey = clean(p.activeTabKey, 100) || null;
         if ('watching' in p) me.watching = clean(p.watching, 100) || null;
+        if ('agents' in p) me.agents = cleanAgents(p.agents);
         scheduleBroadcast(room);
         break;
       }
@@ -255,7 +272,9 @@ function onConnection(ws, req) {
         if (room.tabs.get(msg.tabKey)?.ownerId === me.id) relay(msg.to, { ...msg, from: me.id });
         break;
       case 'cursor': // owner's own pointer
-        if (room.tabs.get(msg.tabKey)?.ownerId === me.id) toSubscribers(msg.tabKey, { type: 'cursor', from: me.id, tabKey: msg.tabKey, x: msg.x, y: msg.y, gone: !!msg.gone }, me.id);
+        if (room.tabs.get(msg.tabKey)?.ownerId === me.id) {
+          toSubscribers(msg.tabKey, { type: 'cursor', from: me.id, tabKey: msg.tabKey, x: msg.x, y: msg.y, gone: !!msg.gone, click: !!msg.click, ai: cleanAgent(msg.ai) }, me.id);
+        }
         break;
 
       case 'signal':
@@ -289,6 +308,20 @@ function onConnection(ws, req) {
         }
         break;
       }
+      // ---- AI helpers working on someone else's shared tab (the owner's browser runs each step)
+      case 'agent-rpc': {
+        const tab = room.tabs.get(msg.tabKey);
+        if (tab && tab.ownerId !== me.id) relay(tab.ownerId, { ...msg, from: me.id });
+        else sendTo(ws, { type: 'agent-rpc-result', rpcId: msg.rpcId, ok: false, error: 'That tab is not shared anymore.' });
+        break;
+      }
+      case 'agent-rpc-result':
+        relay(msg.to, { ...msg, from: me.id });
+        break;
+      case 'agent-stop':
+        relay(msg.to, { type: 'agent-stop', from: me.id, agentId: clean(msg.agentId, 64) });
+        break;
+
       case 'leave':
         removeMember(room, me.id);
         room = me = null;
